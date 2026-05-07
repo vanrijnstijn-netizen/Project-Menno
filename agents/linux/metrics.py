@@ -1,9 +1,5 @@
 """Metric collection module for Linux monitoring agents.
 
-This module contains all functions used to collect system information from a
-Linux machine. The main agent script imports collect_metrics() from this module
-so the agent code stays small and readable.
-
 Collected information includes:
 - hostname
 - operating system

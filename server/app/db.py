@@ -27,9 +27,6 @@ def ensure_data_dir() -> None:
 
     The SQLite database file is stored inside DATA_DIR. This function makes
     sure that directory exists before opening the database.
-
-    Returns:
-        None
     """
     os.makedirs(DATA_DIR, exist_ok=True)
 

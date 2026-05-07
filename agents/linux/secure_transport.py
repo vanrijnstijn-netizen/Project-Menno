@@ -2,9 +2,6 @@
 
 This module handles encryption and digital signing of monitoring data before it
 is sent to the server.
-
-The main agent script should not need to know how Fernet or HMAC work. It only
-calls build_secure_envelope(payload).
 """
 
 import hashlib

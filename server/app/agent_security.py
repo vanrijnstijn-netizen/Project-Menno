@@ -63,10 +63,6 @@ def verify_timestamp(timestamp: int) -> None:
     Raises:
         AgentSecurityError:
             If the timestamp is outside the allowed time window.
-
-    Notes:
-        This is used as basic replay protection. If someone captures an old
-        valid request, they cannot reuse it after the allowed time window.
     """
     now = int(time.time())
 

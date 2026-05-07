@@ -1,13 +1,9 @@
 """Main Linux monitoring agent.
 
-This script is intentionally kept small.
-
 It imports:
 - collect_metrics() from metrics.py
 - build_secure_envelope() from secure_transport.py
 
-The result is a modular Linux agent where measurement logic and security logic
-are split into separate files.
 """
 
 import logging
@@ -34,7 +30,7 @@ logging.basicConfig(
 
 
 def main() -> None:
-    """Run the secure Linux monitoring agent loop.
+    """Run the Linux monitoring agent loop.
 
     The loop performs these steps:
 
