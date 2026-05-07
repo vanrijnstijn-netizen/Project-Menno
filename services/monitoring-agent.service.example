@@ -6,6 +6,19 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=/opt/monitoring-agent
+
+Environment="SERVER_URL=https://192.168.178.204:5000/api/monitor"
+Environment="INTERVAL_SECONDS=5"
+Environment="LOG_FILE=/opt/monitoring-agent/agent.log"
+
+Environment="AGENT_ID=linux-agent-01"
+Environment="AGENT_ENCRYPTION_KEY=CHANGE_THIS_FERNET_KEY"
+Environment="AGENT_HMAC_SECRET=CHANGE_THIS_HMAC_SECRET"
+
+Environment="VERIFY_TLS=false"
+Environment="DISK_PATH=/"
+Environment="IP_DETECTION_TARGET=192.168.178.1"
+
 ExecStart=/usr/bin/python3 /opt/monitoring-agent/agent.py
 
 Restart=always
