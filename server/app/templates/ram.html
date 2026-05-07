@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}RAM Grafieken{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>RAM Grafieken</h1>
+    <p><strong>Laatst vernieuwd:</strong> <span id="last-refresh">{{ now }}</span></p>
+</div>
+
+<div id="ram-plots-container">
+    {% for hostname, rows in graph_data.items() %}
+    <div class="plot-card">
+        <h2>{{ hostname }}</h2>
+        <div id="ram-plot-{{ loop.index }}" class="plot"></div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const refreshIntervalMs = {{ refresh_interval_ms }};
+    let graphData = {{ graph_data | tojson }};
+
+    function ramTrace(hostname, rows) {
+        return {
+            x: rows.map(r => r.timestamp),
+            y: rows.map(r => r.memory_percent),
+            mode: 'lines',
+            name: hostname,
+            type: 'scatter',
+            line: { shape: 'spline', smoothing: 1.1, width: 3, color: '#16a34a' },
+            fill: 'tozeroy',
+            fillcolor: 'rgba(22, 163, 74, 0.18)'
+        };
+    }
+
+    function renderPlots(data) {
+        let idx = 1;
+
+        for (const hostname of Object.keys(data)) {
+            const rows = data[hostname];
+
+            Plotly.react(`ram-plot-${idx}`, [ramTrace(hostname, rows)], {
+                title: `RAM gebruik - ${hostname}`,
+                margin: { t: 50, r: 20, b: 50, l: 50 },
+                xaxis: { title: 'Tijdstip' },
+                yaxis: { title: 'RAM %', rangemode: 'tozero' }
+            }, {
+                responsive: true,
+                displayModeBar: true
+            });
+
+            idx++;
+        }
+    }
+
+    async function refreshData() {
+        const response = await fetch('/api/dashboard-data');
+        const data = await response.json();
+
+        document.getElementById('last-refresh').textContent = data.now;
+        graphData = data.graph_data;
+        renderPlots(graphData);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        renderPlots(graphData);
+        setInterval(refreshData, refreshIntervalMs);
+    });
+</script>
+{% endblock %}

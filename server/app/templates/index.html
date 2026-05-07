@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+
+{% block title %}Monitoring Data{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Monitoring Data</h1>
+    <p><strong>Laatst vernieuwd:</strong> <span id="last-refresh">{{ now }}</span></p>
+    <p><strong>Aantal agents:</strong> <span id="agent-count">{{ agents|length }}</span></p>
+
+    <div class="controls">
+        <button type="button" onclick="showAllAgents()">Toon alle agents</button>
+        <button type="button" onclick="hideAllAgents()">Verberg alle agents</button>
+        <button type="button" onclick="expandAllAgents()">Klap alles uit</button>
+        <button type="button" onclick="collapseAllAgents()">Klap alles in</button>
+    </div>
+
+    <div class="agent-selector" id="agent-selector"></div>
+</div>
+
+<div id="agents-container"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const refreshIntervalMs = {{ refresh_interval_ms }};
+    let dashboardData = {
+        agents: {{ agents | tojson }},
+        now: "{{ now }}"
+    };
+
+    function safeId(value) {
+        return String(value).replace(/[^a-zA-Z0-9_-]/g, "_");
+    }
+
+    function getVisibleAgents() {
+        return JSON.parse(localStorage.getItem('visibleAgents') || '{}');
+    }
+
+    function setVisibleAgents(state) {
+        localStorage.setItem('visibleAgents', JSON.stringify(state));
+    }
+
+    function getCollapsedAgents() {
+        return JSON.parse(localStorage.getItem('collapsedAgents') || '{}');
+    }
+
+    function setCollapsedAgents(state) {
+        localStorage.setItem('collapsedAgents', JSON.stringify(state));
+    }
+
+    function toggleAgent(hostname) {
+        const id = safeId(hostname);
+        const content = document.getElementById(`content-${id}`);
+        const icon = document.getElementById(`toggle-icon-${id}`);
+        const collapsedAgents = getCollapsedAgents();
+
+        if (content.classList.contains('hidden')) {
+            content.classList.remove('hidden');
+            icon.textContent = '−';
+            collapsedAgents[hostname] = false;
+        } else {
+            content.classList.add('hidden');
+            icon.textContent = '+';
+            collapsedAgents[hostname] = true;
+        }
+
+        setCollapsedAgents(collapsedAgents);
+    }
+
+    function toggleAgentVisibility(hostname, visible) {
+        const id = safeId(hostname);
+        const block = document.getElementById(`block-${id}`);
+        const visibleAgents = getVisibleAgents();
+
+        if (block) {
+            block.classList.toggle('hidden', !visible);
+        }
+
+        visibleAgents[hostname] = visible;
+        setVisibleAgents(visibleAgents);
+    }
+
+    function showAllAgents() {
+        const visibleAgents = getVisibleAgents();
+
+        document.querySelectorAll('.agent-visibility-checkbox').forEach(cb => {
+            cb.checked = true;
+            const block = document.getElementById(`block-${safeId(cb.dataset.agent)}`);
+            if (block) block.classList.remove('hidden');
+            visibleAgents[cb.dataset.agent] = true;
+        });
+
+        setVisibleAgents(visibleAgents);
+    }
+
+    function hideAllAgents() {
+        const visibleAgents = getVisibleAgents();
+
+        document.querySelectorAll('.agent-visibility-checkbox').forEach(cb => {
+            cb.checked = false;
+            const block = document.getElementById(`block-${safeId(cb.dataset.agent)}`);
+            if (block) block.classList.add('hidden');
+            visibleAgents[cb.dataset.agent] = false;
+        });
+
+        setVisibleAgents(visibleAgents);
+    }
+
+    function expandAllAgents() {
+        const collapsedAgents = getCollapsedAgents();
+
+        document.querySelectorAll('[id^="content-"]').forEach(content => {
+            content.classList.remove('hidden');
+        });
+
+        document.querySelectorAll('[id^="toggle-icon-"]').forEach(icon => {
+            icon.textContent = '−';
+        });
+
+        document.querySelectorAll('.agent-visibility-checkbox').forEach(cb => {
+            collapsedAgents[cb.dataset.agent] = false;
+        });
+
+        setCollapsedAgents(collapsedAgents);
+    }
+
+    function collapseAllAgents() {
+        const collapsedAgents = getCollapsedAgents();
+
+        document.querySelectorAll('[id^="content-"]').forEach(content => {
+            content.classList.add('hidden');
+        });
+
+        document.querySelectorAll('[id^="toggle-icon-"]').forEach(icon => {
+            icon.textContent = '+';
+        });
+
+        document.querySelectorAll('.agent-visibility-checkbox').forEach(cb => {
+            collapsedAgents[cb.dataset.agent] = true;
+        });
+
+        setCollapsedAgents(collapsedAgents);
+    }
+
+    function renderAgentSelector(agents) {
+        const selector = document.getElementById('agent-selector');
+        const visibleAgents = getVisibleAgents();
+        selector.innerHTML = '';
+
+        Object.entries(agents).forEach(([hostname, records]) => {
+            const label = document.createElement('label');
+            const checked = visibleAgents[hostname] === undefined ? true : visibleAgents[hostname];
+
+            label.innerHTML = `
+                <input type="checkbox" class="agent-visibility-checkbox" data-agent="${hostname}" ${checked ? 'checked' : ''}>
+                ${hostname} (${records.length})
+            `;
+
+            selector.appendChild(label);
+        });
+
+        selector.querySelectorAll('.agent-visibility-checkbox').forEach(cb => {
+            cb.addEventListener('change', function () {
+                toggleAgentVisibility(cb.dataset.agent, cb.checked);
+            });
+        });
+    }
+
+    function buildTableRows(records) {
+        return records.map(r => `
+            <tr>
+                <td>${r.id ?? '-'}</td>
+                <td>${r.timestamp ?? '-'}</td>
+                <td>${r.os ?? '-'}</td>
+                <td>${r.platform ?? '-'}</td>
+                <td>${r.ip_address ?? '-'}</td>
+                <td>${r.cpu_percent ?? '-'}</td>
+                <td>${r.memory_percent ?? '-'}</td>
+                <td>${r.disk_percent ?? '-'}</td>
+                <td>${r.process_count ?? '-'}</td>
+                <td>${r.user_count ?? '-'}</td>
+                <td>${r.load_1 ?? '-'}</td>
+                <td>${r.load_5 ?? '-'}</td>
+                <td>${r.load_15 ?? '-'}</td>
+                <td>${r.uptime_seconds ?? '-'}</td>
+                <td>${r.boot_time ?? '-'}</td>
+                <td>${r.python_version ?? '-'}</td>
+                <td>${r.agent_version ?? '-'}</td>
+            </tr>
+        `).join('');
+    }
+
+    function renderAgents(agents) {
+        const container = document.getElementById('agents-container');
+        const visibleAgents = getVisibleAgents();
+        const collapsedAgents = getCollapsedAgents();
+        container.innerHTML = '';
+
+        Object.entries(agents).forEach(([hostname, records]) => {
+            const id = safeId(hostname);
+            const latest = records.length > 0 ? records[0] : {};
+            const isVisible = visibleAgents[hostname] === undefined ? true : visibleAgents[hostname];
+            const isCollapsed = collapsedAgents[hostname] === true;
+
+            const block = document.createElement('div');
+            block.className = `agent-block ${isVisible ? '' : 'hidden'}`;
+            block.id = `block-${id}`;
+
+            block.innerHTML = `
+                <div class="agent-header" onclick="toggleAgent('${hostname}')">
+                    <div class="agent-title">
+                        <h2 style="margin: 0;">Agent: ${hostname}</h2>
+                        <div class="agent-subtitle">
+                            ${records.length} records
+                            ${latest.ip_address ? `| Laatste IP: ${latest.ip_address}` : ''}
+                            ${latest.os ? `| OS: ${latest.os}` : ''}
+                        </div>
+                    </div>
+                    <div class="agent-toggle" id="toggle-icon-${id}">${isCollapsed ? '+' : '−'}</div>
+                </div>
+
+                <div id="content-${id}" class="${isCollapsed ? 'hidden' : ''}">
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th><th>Tijdstip</th><th>OS</th><th>Platform</th><th>IP</th>
+                                    <th>CPU %</th><th>RAM %</th><th>Disk %</th><th>Processes</th><th>Users</th>
+                                    <th>Load 1</th><th>Load 5</th><th>Load 15</th><th>Uptime (s)</th>
+                                    <th>Boot time</th><th>Python</th><th>Agent versie</th>
+                                </tr>
+                            </thead>
+                            <tbody>${buildTableRows(records)}</tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            container.appendChild(block);
+        });
+    }
+
+    async function refreshData() {
+        try {
+            const response = await fetch('/api/dashboard-data');
+            const data = await response.json();
+
+            document.getElementById('last-refresh').textContent = data.now;
+            document.getElementById('agent-count').textContent = Object.keys(data.agents).length;
+
+            renderAgentSelector(data.agents);
+            renderAgents(data.agents);
+        } catch (error) {
+            console.error('Refresh failed:', error);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        renderAgentSelector(dashboardData.agents);
+        renderAgents(dashboardData.agents);
+        setInterval(refreshData, refreshIntervalMs);
+    });
+</script>
+{% endblock %}

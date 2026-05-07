@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+venv/
+.env
+
+*.log
+*.sqlite3
+
+server/data/
+server/logs/
+
+server/config.py
+agents/linux/agent_config.py
+
+.idea/

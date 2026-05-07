@@ -1,0 +1,24 @@
+"""Configuration for the secure Windows monitoring agent.
+
+Copy this file to agent_config.py on the Windows client and fill in the actual
+server URL and secrets.
+
+Do not commit real secrets to Git.
+"""
+
+SERVER_URL = "https://192.168.178.204:5000/api/monitor"
+INTERVAL_SECONDS = 5
+LOG_FILE = r"C:\MonitoringAgent\agent_windows.log"
+
+AGENT_ID = "windows-agent-01"
+AGENT_VERSION = "4.0-secure-windows"
+
+AGENT_ENCRYPTION_KEY = "PASTE_FERNET_KEY_HERE"
+AGENT_HMAC_SECRET = "PASTE_HMAC_SECRET_HERE"
+
+# Use False for Flask ssl_context='adhoc' / self-signed certificates.
+# Use True when the server has a trusted certificate.
+VERIFY_TLS = False
+
+# Disk to monitor on Windows.
+DISK_PATH = "C:\\"

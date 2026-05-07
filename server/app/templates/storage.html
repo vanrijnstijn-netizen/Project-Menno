@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Storage Grafieken{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Storage Grafieken</h1>
+    <p><strong>Laatst vernieuwd:</strong> <span id="last-refresh">{{ now }}</span></p>
+    <p>Per client een cirkeldiagram: gebruikt versus vrij.</p>
+</div>
+
+<div id="storage-plots-container">
+    {% for hostname, rows in graph_data.items() %}
+    <div class="plot-card">
+        <h2>{{ hostname }}</h2>
+        <div id="storage-plot-{{ loop.index }}" class="plot"></div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const refreshIntervalMs = {{ refresh_interval_ms }};
+    let graphData = {{ graph_data | tojson }};
+
+    function getLatestDiskPercent(rows) {
+        if (!rows || rows.length === 0) return 0;
+        const latest = rows[rows.length - 1];
+        return Number(latest.disk_percent || 0);
+    }
+
+    function storageTrace(rows) {
+        const used = getLatestDiskPercent(rows);
+        const free = Math.max(0, 100 - used);
+
+        return {
+            labels: ['Gebruikt', 'Vrij'],
+            values: [used, free],
+            type: 'pie',
+            hole: 0.45,
+            textinfo: 'label+percent',
+            marker: { colors: ['#dc2626', '#22c55e'] }
+        };
+    }
+
+    function renderPlots(data) {
+        let idx = 1;
+
+        for (const hostname of Object.keys(data)) {
+            const rows = data[hostname];
+            const used = getLatestDiskPercent(rows);
+
+            Plotly.react(`storage-plot-${idx}`, [storageTrace(rows)], {
+                title: `Storage gebruik - ${hostname} (${used.toFixed(2)}%)`,
+                margin: { t: 50, r: 20, b: 20, l: 20 }
+            }, {
+                responsive: true,
+                displayModeBar: true
+            });
+
+            idx++;
+        }
+    }
+
+    async function refreshData() {
+        const response = await fetch('/api/dashboard-data');
+        const data = await response.json();
+
+        document.getElementById('last-refresh').textContent = data.now;
+        graphData = data.graph_data;
+        renderPlots(graphData);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        renderPlots(graphData);
+        setInterval(refreshData, refreshIntervalMs);
+    });
+</script>
+{% endblock %}
