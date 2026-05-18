@@ -10,12 +10,12 @@ required SQLite tables when it starts.
 
 from config import HOST, PORT, USE_ADHOC_SSL
 from app import create_app
-from app.db import init_db
+from app.db import metrics_db
 
 app = create_app()
 
 with app.app_context():
-    init_db()
+    metrics_db.init()
 
 if __name__ == "__main__":
     if USE_ADHOC_SSL:

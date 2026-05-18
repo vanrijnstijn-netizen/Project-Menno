@@ -21,9 +21,9 @@ import requests
 from flask import Blueprint, request, jsonify, render_template, redirect, url_for, session
 
 from app import oauth
-from app.agent_security import decode_secure_agent_request, AgentSecurityError
-from app.db import insert_metric, get_grouped_metrics, get_graph_data
-from app.utils import validate_agent_data
+from app.agent_security import AgentSecurityError, security_verifier
+from app.db import metrics_db
+from app.utils import validator
 from config import MAX_ROWS_PER_AGENT, REFRESH_INTERVAL_MS, AMAZON_REDIRECT_URI
 
 main = Blueprint("main", __name__)
@@ -134,9 +134,9 @@ def api_monitor():
     try:
         envelope = request.get_json(force=True)
 
-        data = decode_secure_agent_request(envelope)
+        data = security_verifier.decode_secure_agent_request(envelope)
 
-        is_valid, message = validate_agent_data(data)
+        is_valid, message = validator.validate(data)
         if not is_valid:
             logging.warning("Ongeldige agentdata ontvangen: %s", message)
             return jsonify({
@@ -144,7 +144,7 @@ def api_monitor():
                 "message": message
             }), 400
 
-        insert_metric(data)
+        metrics_db.insert_metric(data)
         logging.info("Versleutelde agentdata opgeslagen van: %s", data.get("hostname"))
 
         return jsonify({
@@ -179,8 +179,8 @@ def dashboard_data():
     """
     try:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        agents = get_grouped_metrics(MAX_ROWS_PER_AGENT)
-        graph_data = get_graph_data()
+        agents = metrics_db.get_grouped_metrics(MAX_ROWS_PER_AGENT)
+        graph_data = metrics_db.get_graph_data()
 
         return jsonify({
             "now": now,
@@ -206,7 +206,7 @@ def dashboard():
             Rendered HTML dashboard page.
     """
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    agents = get_grouped_metrics(MAX_ROWS_PER_AGENT)
+    agents = metrics_db.get_grouped_metrics(MAX_ROWS_PER_AGENT)
 
     return render_template(
         "index.html",
@@ -227,7 +227,7 @@ def cpu_page():
             Rendered HTML page containing CPU graphs per agent.
     """
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    graph_data = get_graph_data()
+    graph_data = metrics_db.get_graph_data()
 
     return render_template(
         "cpu.html",
@@ -248,7 +248,7 @@ def ram_page():
             Rendered HTML page containing RAM graphs per agent.
     """
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    graph_data = get_graph_data()
+    graph_data = metrics_db.get_graph_data()
 
     return render_template(
         "ram.html",
@@ -269,7 +269,7 @@ def storage_page():
             Rendered HTML page containing storage pie charts per agent.
     """
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    graph_data = get_graph_data()
+    graph_data = metrics_db.get_graph_data()
 
     return render_template(
         "storage.html",

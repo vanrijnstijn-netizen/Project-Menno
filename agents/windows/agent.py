@@ -17,9 +17,9 @@ import time
 import requests
 import urllib3
 
-from agent_config import SERVER_URL, INTERVAL_SECONDS, LOG_FILE, VERIFY_TLS
+from agent_config import SERVER_URL, INTERVAL_SECONDS, LOG_FILE, VERIFY_TLS, AGENT_ID, AGENT_ENCRYPTION_KEY, AGENT_HMAC_SECRET
 from metrics import collect_metrics
-from secure_transport import build_secure_envelope
+from secure_transport import SecureTransport
 
 if not VERIFY_TLS:
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -47,13 +47,15 @@ def main() -> None:
     Returns:
         None
     """
+    transport = SecureTransport(AGENT_ID, AGENT_ENCRYPTION_KEY, AGENT_HMAC_SECRET)
+
     print("Secure Windows agent gestart →", SERVER_URL)
     logging.info("Secure Windows agent gestart")
 
     while True:
         try:
             metrics = collect_metrics()
-            envelope = build_secure_envelope(metrics)
+            envelope = transport.build_secure_envelope(metrics)
 
             response = requests.post(
                 SERVER_URL,
